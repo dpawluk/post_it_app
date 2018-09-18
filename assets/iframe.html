@@ -3,9 +3,21 @@
   <meta charset="utf-8">
   <!-- http://garden.zendesk.com -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@zendeskgarden/css-bedrock@7.0" type="text/css">
+  <link rel="stylesheet" href="css/style.css" type="text/css">
+  <script
+  src="https://code.jquery.com/jquery-3.3.1.min.js"
+  integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+  crossorigin="anonymous"></script>
 </head>
 <body>
-  <h2 class="u-gamma">Hello, World!</h2>
+  <div id="post_it_wrapper">
+    <div id="post_it_app">
+      <input id="note_id" type="hidden">
+      <textarea id="post_it_text"></textarea>
+      <button id="test_save">Save</button>
+      <span id="saving_note">Saving...</span>
+    </div>
+  </div>
   <!-- https://github.com/zendesk/zendesk_app_framework_sdk -->
   <script type="text/javascript" src="https://assets.zendesk.com/apps/sdk/2.0/zaf_sdk.js"></script>
   <script>
@@ -13,6 +25,107 @@
     // https://developer.zendesk.com/apps/docs/apps-v2
     var client = ZAFClient.init();
     client.invoke('resize', { width: '100%', height: '200px' });
+    client.on('app.registered', init);
+
+    function init(){
+      client.get('currentUser').then(checkForUserNote);
+      // get current users id
+      // check for existing note and create resource if not there
+    };
+
+    function checkForUserNote(userobj){
+      var user_id = userobj.currentUser.id;
+      var request_object = {
+        url: "/api/custom_resources/resources/zen:user:" + user_id + "/related/user_to_note"
+      };
+      client.request(request_object).then(function(response){
+        //Sweet, the related note already exists, now we can push the current content to the sticky apps
+        var resource = response.data[0]; //one-to-one so only can be 1 in the array response.
+        $('#note_id')[0].value = resource.id;
+        $('#post_it_text')[0].value = resource.attributes.note;
+        $('#test_save').click(updateNoteResource);
+      }).catch(function(error){
+        if(error.status == 404){
+          console.log("base note does not exist yet, creating...");
+          createNoteResource().then(function(response){
+            var note_id = response.data.id;
+            createNoteRelationship(note_id, user_id).then(function(response){
+              // need to catch error here
+            });
+          });
+        }
+        else {
+          throw new Error('Higher-level error. ' + error.message);
+        }
+      });
+    };
+
+    function createNoteResource(){
+      var payload =
+      {
+        "data": {
+          "type": "sticky_note",
+          "attributes": {
+            "note": " "
+          }
+        }
+      };
+      var req = {
+        "url": "/api/custom_resources/resources",
+        "type": "POST",
+        "contentType":"application/json",
+        "data": JSON.stringify(payload)
+      };
+      return client.request(req);
+    };
+
+    function createNoteRelationship(note_id, user_id){
+      var payload =
+      {
+        "data": {
+          "relationship_type": "user_to_note",
+          "source": "zen:user:" + user_id,
+          "target": note_id
+        }
+      };
+      console.log(payload);
+      var req = {
+        "url": "/api/custom_resources/relationships",
+        "type": "POST",
+        "contentType": "application/json",
+        "data": JSON.stringify(payload)
+      };
+      return client.request(req);
+    };
+
+    function startAutoSave(){
+
+    };
+
+    function updateNoteResource(){
+      var note_id = $('#note_id')[0].value;
+      var note_value = $('#post_it_text')[0].value;
+      var payload = {
+        "data": {
+          "attributes": {
+            "note": note_value
+          }
+        }
+      };
+
+      var req = {
+        "url": "/api/custom_resources/resources/" + note_id,
+        "type": "PATCH",
+        "contentType": "application/merge-patch+json",
+        "data": JSON.stringify(payload)
+      }
+      client.request(req).then(function(response){
+        console.log(response);
+      });
+    };
+
+
+
   </script>
 </body>
 </html>
