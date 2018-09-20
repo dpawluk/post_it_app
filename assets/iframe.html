@@ -15,7 +15,7 @@
       <input id="note_id" type="hidden">
       <textarea id="post_it_text"></textarea>
       <!-- <button id="test_save">Save</button> -->
-      <span sytle="visibility: hidden" id="saving_spinner"><img src="images/saving.gif">Saving...</span>
+      <span style="display:none" id="saving_spinner"><img src="images/saving.gif">Saving...</span>
     </div>
   </div>
   <!-- https://github.com/zendesk/zendesk_app_framework_sdk -->
@@ -24,13 +24,12 @@
     // Initialise the Zendesk JavaScript API client
     // https://developer.zendesk.com/apps/docs/apps-v2
     var client = ZAFClient.init();
-    client.invoke('resize', { width: '100%', height: '400px' });
+    client.invoke('resize', { width: '100%', height: '325px' });
     client.on('app.registered', init);
     client.on('app.activated', init);
 
     function init(){
       client.get('currentUser').then(checkForUserNote);
-      $("span#saving_spinner").hide();
       // get current users id
       // check for existing note and create resource if not there
     };
