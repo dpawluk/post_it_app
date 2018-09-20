@@ -1,12 +1,22 @@
 #post_it_text {
   width: 100%;
-  min-height: 180px;
+  min-height: 300px;
   resize: none;
   background: -webkit-gradient(linear, left top, right bottom, color-stop(81%,#ffff88), color-stop(82%,#ffff88), color-stop(82%,#ffff88), color-stop(100%,#ffffc6)); /* Chrome,Safari4+ */
   border-bottom-right-radius: 60px 5px;
+  font-family: "Comic Sans MS", "Comic Sans", cursive;
+  font-size: 120%;
 }
 
 
-span#saving_note {
-  visibility: hidden;
+span#saving_spinner {
+  display: inline-block;
+  margin-top: 5px;
+  font-size: 90%
+  color: #999;
+}
+
+span#saving_spinner img {
+  width: 15px;
+  margin-right: 5px;
 }

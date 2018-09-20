@@ -14,8 +14,8 @@
     <div id="post_it_app">
       <input id="note_id" type="hidden">
       <textarea id="post_it_text"></textarea>
-      <button id="test_save">Save</button>
-      <span id="saving_note">Saving...</span>
+      <!-- <button id="test_save">Save</button> -->
+      <span sytle="visibility: hidden" id="saving_spinner"><img src="images/saving.gif">Saving...</span>
     </div>
   </div>
   <!-- https://github.com/zendesk/zendesk_app_framework_sdk -->
@@ -24,16 +24,19 @@
     // Initialise the Zendesk JavaScript API client
     // https://developer.zendesk.com/apps/docs/apps-v2
     var client = ZAFClient.init();
-    client.invoke('resize', { width: '100%', height: '200px' });
+    client.invoke('resize', { width: '100%', height: '400px' });
     client.on('app.registered', init);
+    client.on('app.activated', init);
 
     function init(){
       client.get('currentUser').then(checkForUserNote);
+      $("span#saving_spinner").hide();
       // get current users id
       // check for existing note and create resource if not there
     };
 
     function checkForUserNote(userobj){
+      // isolate user_id from user objecct, get related notes...
       var user_id = userobj.currentUser.id;
       var request_object = {
         url: "/api/custom_resources/resources/zen:user:" + user_id + "/related/user_to_note"
@@ -43,14 +46,16 @@
         var resource = response.data[0]; //one-to-one so only can be 1 in the array response.
         $('#note_id')[0].value = resource.id;
         $('#post_it_text')[0].value = resource.attributes.note;
-        $('#test_save').click(updateNoteResource);
+        $('#test_save').click(updateNoteResource); //replace this with autosave listener
+        startAutoSave();
       }).catch(function(error){
+        //if 404 then create initial note and relationship
         if(error.status == 404){
           console.log("base note does not exist yet, creating...");
           createNoteResource().then(function(response){
             var note_id = response.data.id;
             createNoteRelationship(note_id, user_id).then(function(response){
-              // need to catch error here
+              // need to catch error here in a real app and cleanup work on different cases...
             });
           });
         }
@@ -61,6 +66,8 @@
     };
 
     function createNoteResource(){
+      // create payload for empty sticky note, then create note resources
+      // return a promise object something like `return client.request(req);` should be last line
       var payload =
       {
         "data": {
@@ -80,6 +87,9 @@
     };
 
     function createNoteRelationship(note_id, user_id){
+      // create payload for the 1:1 user to note relationship
+      // relationship type to use from shell script is 'user_to_note'
+      // return a promise object something like `return client.request(req);` should be last line
       var payload =
       {
         "data": {
@@ -99,10 +109,28 @@
     };
 
     function startAutoSave(){
+      //create a variable for a timeoutId
+      // on keydown and keyup, clearTimeout, set 2 second timeout to autosave so that after typing is done for 2 whole seconds the note saves
+      var timeoutId;
+      $('#post_it_text').on('keydown keyup', function() {
+        console.log('Textarea Change');
 
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(function() {
+          // Runs 2 second (2000 ms) after the last change
+          updateNoteResource();
+          console.log("autosave would start");
+        }, 2000);
+      });
     };
 
     function updateNoteResource(){
+      // show the save spinner message
+      // get the latest values in the
+      // create payload for resource update
+      // create merge/patch request
+      // send request and hide spinner again
+      $("span#saving_spinner").show();
       var note_id = $('#note_id')[0].value;
       var note_value = $('#post_it_text')[0].value;
       var payload = {
@@ -121,6 +149,8 @@
       }
       client.request(req).then(function(response){
         console.log(response);
+        console.log("show spinner");
+        $("span#saving_spinner").hide();
       });
     };
 
