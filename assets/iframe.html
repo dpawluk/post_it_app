@@ -42,14 +42,14 @@
       };
       client.request(request_object).then(function(response){
         //Sweet, the related note already exists, now we can push the current content to the sticky apps
-        var resource = response.data[0]; //one-to-one so only can be 1 in the array response.
-        $('#note_id')[0].value = resource.id;
-        $('#post_it_text')[0].value = resource.attributes.note;
-        $('#test_save').click(updateNoteResource); //replace this with autosave listener
-        startAutoSave();
-      }).catch(function(error){
-        //if 404 then create initial note and relationship
-        if(error.status == 404){
+        var resource = response.data[0]; //one-to-one so only can be 1 in the array response. Otherwise we create a new note
+        if (resource.length > 0) {
+          $('#note_id')[0].value = resource.id;
+          $('#post_it_text')[0].value = resource.attributes.note;
+          $('#test_save').click(updateNoteResource); //replace this with autosave listener
+          startAutoSave();
+        }
+        else {
           console.log("base note does not exist yet, creating...");
           createNoteResource().then(function(response){
             var note_id = response.data.id;
@@ -57,9 +57,6 @@
               // need to catch error here in a real app and cleanup work on different cases...
             });
           });
-        }
-        else {
-          throw new Error('Higher-level error. ' + error.message);
         }
       });
     };
