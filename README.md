@@ -1,12 +1,14 @@
 # Sticky Note App
 
-[This app is a sticky note app for zendesk that uses custom resources, before using this app you will need to perform two curl requests to install the necessary resource and relationship types]
+This app is a sticky note app for zendesk that uses custom resources, before using this app you will need to perform two curl requests to install the necessary resource and relationship types
 
-### Installing the resource types and relationship types:
+## Installing the resource types and relationship types:
 
-- Please remember to replace:
+### Please use the below curl commands and remember to replace the values below:
 -- SUBDOMAIN
 -- username and password
+### Alternatively, download the bash scipt that will install these with prompts here:
+https://gist.github.com/dpawluk/6cda1d0af0cb1699a2ea79a44e2ad129
 
 ## Install note resource_type
 
