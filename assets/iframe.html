@@ -12,6 +12,11 @@
 <body>
   <div id="post_it_wrapper">
     <div id="post_it_app">
+      <select id="note_select">
+
+      </select>
+      <input type="text" id="note_title"/>
+      <button id="new_note">add</button>
       <input id="note_id" type="hidden">
       <textarea id="post_it_text"></textarea>
       <!-- <button id="test_save">Save</button> -->
@@ -27,6 +32,8 @@
     client.invoke('resize', { width: '100%', height: '325px' });
     client.on('app.registered', init);  // start app when app first created/opened
     client.on('app.activated', init);   // also start init process when switching to already open app
+    $('#new_note').click(createNewNote);
+    $('#note_select').change(displaySelectedNote);
 
     function init(){
       client.get('currentUser').then(checkForUserNote);
@@ -38,21 +45,27 @@
       // isolate user_id from user objecct, get related notes...
       var user_id = userobj.currentUser.id;
       var request_object = {
-        url: "/api/custom_resources/resources/zen:user:" + user_id + "/related/user_to_note"
+        url: "/api/custom_resources/resources/zen:user:" + user_id + "/related/user_has_many_notes"
       };
       client.request(request_object).then(function(response){
         //Sweet, the related note already exists, now we can push the current content to the sticky apps
         //one-to-one so only can be 1 in the array response. Otherwise we create a new note
         if (response.data.length > 0) {
+          populateNoteList(response.data);
           var resource = response.data[0];
+          $('#note_title').val(resource.attributes.title)
           $('#note_id')[0].value = resource.id;
           $('#post_it_text')[0].value = resource.attributes.note;
-          $('#test_save').click(updateNoteResource); //replace this with autosave listener
+          // $('#test_save').click(updateNoteResource); //replace this with autosave listener
           startAutoSave();
         }
         else {
           console.log("base note does not exist yet, creating...");
-          createNoteResource().then(function(response){
+          var blank_note = {
+            "title": "Note 1",
+            "note": " "
+          }
+          createNoteResource(blank_note).then(function(response){
             var note_id = response.data.id;
             createNoteRelationship(note_id, user_id).then(function(response){
               // need to catch error here in a real app and cleanup work on different cases...
@@ -63,7 +76,53 @@
       });
     };
 
-    function createNoteResource(){
+    function displaySelectedNote(){
+      var note_id = $('#note_select').val();
+      getNoteById(note_id).then(function(response){
+        var resource = response.data;
+        $('#note_title').val(resource.attributes.title)
+        $('#note_id')[0].value = resource.id;
+        $('#post_it_text')[0].value = resource.attributes.note;
+      });
+    };
+
+    function getNoteById(id){
+      var payload = {
+        "url": `/api/custom_resources/resources/${id}`
+      };
+      return client.request(payload);
+    }
+
+    function populateNoteList(data){
+      console.log(data);
+      var options_array = [];
+      data.forEach(function(note){
+        var option_html = `<option value="${note.id}">${note.attributes.title}</option>`;
+        options_array.push(option_html);
+        $("#note_select").html(options_array);
+      });
+
+    };
+
+    function createNewNote(event){
+      event.preventDefault();
+      var blank_note = {
+        "title": "New Note",
+        "note": " "
+      }
+      client.get('currentUser').then(function(response){
+        var user_id = response.currentUser.id;
+        createNoteResource(blank_note).then(function(response){
+          var note_id = response.data.id;
+          createNoteRelationship(note_id, user_id).then(function(response){
+            // need to catch error here in a real app and cleanup work on different cases...
+            init();// start app again to get the original resource in there...
+          });
+        });
+      });
+    };
+
+    function createNoteResource(attributes){
       // create payload for empty sticky note, then create note resources
       // return a promise object something like `return client.request(req);` should be last line
       var payload =
@@ -71,7 +130,8 @@
         "data": {
           "type": "sticky_note",
           "attributes": {
-            "note": " "
+            "note": attributes.note,
+            "title": attributes.title
           }
         }
       };
@@ -86,12 +146,12 @@
 
     function createNoteRelationship(note_id, user_id){
       // create payload for the 1:1 user to note relationship
-      // relationship type to use from shell script is 'user_to_note'
+      // relationship type to use from shell script is 'user_has_many_notes'
       // return a promise object something like `return client.request(req);` should be last line
       var payload =
       {
         "data": {
-          "relationship_type": "user_to_note",
+          "relationship_type": "user_has_many_notes",
           "source": "zen:user:" + user_id,
           "target": note_id
         }
@@ -110,7 +170,7 @@
       //create a variable for a timeoutId
       // on keydown and keyup, clearTimeout, set 2 second timeout to autosave so that after typing is done for 2 whole seconds the note saves
       var timeoutId;
-      $('#post_it_text').on('keydown keyup', function() {
+      $('#post_it_text, #note_title').on('keydown keyup', function() {
         console.log('Textarea Change');
 
         clearTimeout(timeoutId);
@@ -131,10 +191,12 @@
       $("span#saving_spinner").show();
       var note_id = $('#note_id')[0].value;
       var note_value = $('#post_it_text')[0].value;
+      var note_title = $('#note_title')[0].value;
       var payload = {
         "data": {
           "attributes": {
-            "note": note_value
+            "note": note_value,
+            "title": note_title
           }
         }
       };
@@ -149,6 +211,7 @@
         console.log(response);
         console.log("show spinner");
         $("span#saving_spinner").hide();
+        displaySelectedNote();
       });
     };
 
